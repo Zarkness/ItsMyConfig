@@ -26,6 +26,11 @@ import to.itsme.itsmyconfig.requirement.RequirementManager;
 import java.io.File;
 import java.util.Collection;
 
+/**
+ * ItsMyConfig class represents the main configuration class for the plugin.
+ * It extends the JavaPlugin class and provides methods to manage the plugin configuration.
+ * It also holds instances of PlaceholderManager, ProgressBarBucket, RequirementManager, and BukkitAudiences.
+ */
 public final class ItsMyConfig extends JavaPlugin {
 
     private static final boolean ALLOW_ITEM_EDITS = false;
@@ -65,7 +70,20 @@ public final class ItsMyConfig extends JavaPlugin {
         }
     }
 
+    /**
+     * The loadConfig method is responsible for loading the configuration file and initializing various settings and data.
+     * It performs the following steps:
+     *
+     * 1. Clears all progress bars in the ProgressBarBucket.
+     * 2. Saves the default configuration file if it does not exist.
+     * 3. Reloads the configuration file.
+     * 4. Loads the symbol prefix from the configuration.
+     * 5. Loads the custom placeholders from the configuration and registers them.
+     * 6. Loads the custom progress bars from the configuration and registers them.
+     * 7. Loads custom YAML files from the plugin's data folder.
+     */
     public void loadConfig() {
+
         progressBarBucket.clearAllProgressBars();
         this.saveDefaultConfig();
         this.reloadConfig();
@@ -76,10 +94,18 @@ public final class ItsMyConfig extends JavaPlugin {
         loadCustomYamlFiles(this.getDataFolder());
     }
 
+    /**
+     * Loads the symbol prefix from the configuration.
+     */
     private void loadSymbolPrefix() {
         this.symbolPrefix = this.getConfig().getString("symbol-prefix");
     }
 
+    /**
+     * Loads the placeholders from the configuration file and registers them with the placeholder manager.
+     * This method iterates over the placeholders configuration section, retrieves the placeholder data,
+     * registers any associated requirements, and finally registers the placeholder with the placeholder manager.
+     */
     private void loadPlaceholders() {
         placeholderManager.unregisterAll();
         final ConfigurationSection placeholdersConfigSection =
@@ -97,6 +123,14 @@ public final class ItsMyConfig extends JavaPlugin {
         }
     }
 
+    /**
+     * Retrieves the placeholder data based on the provided configuration section and identifier.
+     *
+     * @param placeholdersConfigSection The configuration section containing the placeholder data.
+     * @param identifier                The identifier of the placeholder.
+     * @param yamlFileName              The name of the YAML file containing the placeholder.
+     * @return The placeholder data object.
+     */
     private PlaceholderData getPlaceholderData(ConfigurationSection placeholdersConfigSection, String identifier, String yamlFileName) {
         if (placeholdersConfigSection == null) return null;
 
@@ -123,6 +157,10 @@ public final class ItsMyConfig extends JavaPlugin {
         }
     }
 
+    /**
+     * Loads progress bars from the configuration file.
+     * Each progress bar is registered in the ProgressBarBucket.
+     */
     private void loadProgressBars() {
         final ConfigurationSection progressBarConfigSection =
                 this.getConfig().getConfigurationSection("custom-progress");
@@ -144,6 +182,14 @@ public final class ItsMyConfig extends JavaPlugin {
         }
     }
 
+    /**
+     * Retrieves a progress bar from a YAML configuration section.
+     *
+     * @param identifier   The identifier of the progress bar.
+     * @param section      The YAML configuration section.
+     * @param yamlFileName The name of the YAML file containing the progress bar.
+     * @return The progress bar object.
+     */
     private ProgressBar getProgressBarFromYaml(String identifier, ConfigurationSection section, String yamlFileName) {
         if (section == null) return null;
 
@@ -165,6 +211,11 @@ public final class ItsMyConfig extends JavaPlugin {
         );
     }
 
+    /**
+     * Loads custom YAML files from the plugin's data folder.
+     *
+     * @param directory The directory containing the YAML files.
+     */
     private void loadCustomYamlFiles(File directory) {
         Collection<File> files = FileUtils.listFiles(directory, new String[]{"yml"}, true);
         for (File file : files) {
@@ -172,6 +223,11 @@ public final class ItsMyConfig extends JavaPlugin {
         }
     }
 
+    /**
+     * Processes a custom YAML file, registering its placeholders and progress bars.
+     *
+     * @param file The YAML file to process.
+     */
     private void processCustomYamlFile(File file) {
         YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file);
         ConfigurationSection placeholdersSection = yaml.getConfigurationSection("custom-placeholder");
@@ -192,6 +248,13 @@ public final class ItsMyConfig extends JavaPlugin {
         }
     }
 
+    /**
+     * Registers a placeholder from a YAML configuration section.
+     *
+     * @param identifier   The identifier of the placeholder.
+     * @param section      The YAML configuration section.
+     * @param yamlFileName The name of the YAML file containing the placeholder.
+     */
     private void registerPlaceholder(String identifier, ConfigurationSection section, String yamlFileName) {
         PlaceholderData data = getPlaceholderDataFromYaml(section);
         if (data != null) {
@@ -204,6 +267,12 @@ public final class ItsMyConfig extends JavaPlugin {
         }
     }
 
+    /**
+     * Retrieves placeholder data from a YAML configuration section.
+     *
+     * @param section The YAML configuration section.
+     * @return The placeholder data object.
+     */
     private PlaceholderData getPlaceholderDataFromYaml(ConfigurationSection section) {
         if (section == null) return null;
 
@@ -225,6 +294,13 @@ public final class ItsMyConfig extends JavaPlugin {
         }
     }
 
+    /**
+     * Registers a progress bar from a YAML configuration section.
+     *
+     * @param identifier   The identifier of the progress bar.
+     * @param section      The YAML configuration section.
+     * @param yamlFileName The name of the YAML file containing the progress bar.
+     */
     private void registerProgressBar(String identifier, ConfigurationSection section, String yamlFileName) {
         ProgressBar progressBar = getProgressBarFromYaml(identifier, section, yamlFileName);
         if (progressBar != null) {
@@ -237,6 +313,12 @@ public final class ItsMyConfig extends JavaPlugin {
         }
     }
 
+    /**
+     * Retrieves the instance of the `BukkitAudiences` class used for sending chat messages and titles.
+     *
+     * @return The instance of the `BukkitAudiences` class.
+     * @throws IllegalStateException if the plugin is disabled and the `Adventure` instance is accessed.
+     */
     public BukkitAudiences adventure() {
         if (this.adventure == null) {
             throw new IllegalStateException("Tried to access Adventure when the plugin was disabled!");
@@ -244,14 +326,30 @@ public final class ItsMyConfig extends JavaPlugin {
         return this.adventure;
     }
 
+    /**
+     * Retrieves the symbol prefix.
+     *
+     * @return The symbol prefix used in messages or text.
+     */
     public String getSymbolPrefix() {
         return symbolPrefix;
     }
 
+    /**
+     * Retrieves the PlaceholderManager instance.
+     *
+     * @return The PlaceholderManager instance.
+     */
     public PlaceholderManager getPlaceholderManager() {
         return placeholderManager;
     }
 
+    /**
+     * Returns the RequirementManager object. The RequirementManager class is responsible for managing requirements
+     * and validating them.
+     *
+     * @return the RequirementManager object
+     */
     public RequirementManager getRequirementManager() {
         return requirementManager;
     }
