@@ -49,6 +49,7 @@ dependencies {
     implementation "org.bstats:bstats-bukkit:3.0.2"
     implementation "com.github.Revxrsal.Lamp:common:${lampVersion}"
     implementation "com.github.Revxrsal.Lamp:bukkit:${lampVersion}"
+    implementation 'commons-io:commons-io:2.11.0'
 
     compileOnly "org.spigotmc:spigot-api:1.12.2-R0.1-SNAPSHOT"
     compileOnly "com.comphenix.protocol:ProtocolLib:5.0.0"

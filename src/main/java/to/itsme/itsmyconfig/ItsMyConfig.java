@@ -3,8 +3,10 @@ package to.itsme.itsmyconfig;
 import com.comphenix.protocol.ProtocolLibrary;
 import com.comphenix.protocol.ProtocolManager;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
+import org.apache.commons.io.FileUtils;
 import org.bstats.bukkit.Metrics;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 import to.itsme.itsmyconfig.command.CommandManager;
 import to.itsme.itsmyconfig.listener.impl.PacketChatListener;
@@ -20,6 +22,14 @@ import to.itsme.itsmyconfig.placeholder.type.StringPlaceholderData;
 import to.itsme.itsmyconfig.progress.ProgressBar;
 import to.itsme.itsmyconfig.progress.ProgressBarBucket;
 import to.itsme.itsmyconfig.requirement.RequirementManager;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.Collection;
+import java.util.Scanner;
+import java.util.function.BiConsumer;
 
 /**
  * ItsMyConfig class represents the main configuration class for the plugin.
@@ -75,6 +85,7 @@ public final class ItsMyConfig extends JavaPlugin {
      * 4. Loads the symbol prefix from the configuration.
      * 5. Loads the custom placeholders from the configuration and registers them.
      * 6. Loads the custom progress bars from the configuration and registers them.
+     * 7. Loads custom YAML files from the data folder.
      */
     public void loadConfig() {
 
@@ -84,6 +95,8 @@ public final class ItsMyConfig extends JavaPlugin {
         this.loadSymbolPrefix();
         this.loadPlaceholders();
         this.loadProgressBars();
+
+        loadCustomYamlFiles(this.getDataFolder());
     }
 
     /**
@@ -184,6 +197,57 @@ public final class ItsMyConfig extends JavaPlugin {
     }
 
     /**
+     * Loads custom YAML files from the data folder and processes them based on the content of the first line.
+     * If the first line contains "custom-placeholder", placeholders are registered. If it contains "custom-progress",
+     * progress bars are registered.
+     *
+     * @param directory The directory to search for YAML files.
+     */
+    private void loadCustomYamlFiles(File directory) {
+        Collection<File> files = FileUtils.listFiles(directory, new String[]{"yml"}, true);
+        for (File file : files) {
+            processCustomYamlFile(file);
+        }
+    }
+
+
+    /**
+     * Retrieves the first line of text from a file.
+     *
+     * @param file The file to read.
+     * @return The first line of text in the file, or null if an error occurs.
+     */
+    private String getFirstLine(File file) {
+        try (Scanner scanner = new Scanner(file)) {
+            if (scanner.hasNextLine()) {
+                return scanner.nextLine();
+            }
+        } catch (IOException e) {
+            getLogger().warning("Error reading file: " + file.getPath());
+        }
+        return null;
+    }
+
+    /**
+     * Processes a custom YAML file by loading it and registering placeholders or progress bars based on the content.
+     *
+     * @param file      The YAML file to process.
+     * @param sectionName The name of the section containing the data to register.
+     * @param processor The function to process each entry in the section.
+     */
+    private void processCustomYamlFile(File file, String sectionName, BiConsumer<String, ConfigurationSection> processor) {
+        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file);
+        ConfigurationSection section = yaml.getConfigurationSection(sectionName);
+        if (section != null) {
+            for (String identifier : section.getKeys(false)) {
+                ConfigurationSection itemSection = section.getConfigurationSection(identifier);
+                processor.accept(identifier, itemSection);
+                this.getLogger().info("Registered custom " + sectionName + ": " + identifier);
+            }
+        }
+    }
+
+    /**
      * Retrieves the instance of the `BukkitAudiences` class used for sending chat messages and titles.
      *
      * @return The instance of the `BukkitAudiences` class.
@@ -223,5 +287,5 @@ public final class ItsMyConfig extends JavaPlugin {
     public RequirementManager getRequirementManager() {
         return requirementManager;
     }
-
+    
 }
