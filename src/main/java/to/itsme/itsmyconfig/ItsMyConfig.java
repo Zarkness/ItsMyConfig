@@ -23,19 +23,9 @@ import to.itsme.itsmyconfig.progress.ProgressBar;
 import to.itsme.itsmyconfig.progress.ProgressBarBucket;
 import to.itsme.itsmyconfig.requirement.RequirementManager;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
 import java.util.Collection;
-import java.util.Scanner;
-import java.util.function.BiConsumer;
 
-/**
- * ItsMyConfig class represents the main configuration class for the plugin.
- * It extends the JavaPlugin class and provides methods to manage the plugin configuration.
- * It also holds instances of PlaceholderManager, ProgressBarBucket, RequirementManager, and BukkitAudiences.
- */
 public final class ItsMyConfig extends JavaPlugin {
 
     private static final boolean ALLOW_ITEM_EDITS = false;
@@ -75,20 +65,7 @@ public final class ItsMyConfig extends JavaPlugin {
         }
     }
 
-    /**
-     * The loadConfig method is responsible for loading the configuration file and initializing various settings and data.
-     * It performs the following steps:
-     *
-     * 1. Clears all progress bars in the ProgressBarBucket.
-     * 2. Saves the default configuration file if it does not exist.
-     * 3. Reloads the configuration file.
-     * 4. Loads the symbol prefix from the configuration.
-     * 5. Loads the custom placeholders from the configuration and registers them.
-     * 6. Loads the custom progress bars from the configuration and registers them.
-     * 7. Loads custom YAML files from the data folder.
-     */
     public void loadConfig() {
-
         progressBarBucket.clearAllProgressBars();
         this.saveDefaultConfig();
         this.reloadConfig();
@@ -99,39 +76,34 @@ public final class ItsMyConfig extends JavaPlugin {
         loadCustomYamlFiles(this.getDataFolder());
     }
 
-    /**
-     * Loads the symbol prefix from the configuration.
-     */
     private void loadSymbolPrefix() {
         this.symbolPrefix = this.getConfig().getString("symbol-prefix");
     }
 
-    /**
-     * Loads the placeholders from the configuration file and registers them with the placeholder manager.
-     * This method iterates over the placeholders configuration section, retrieves the placeholder data,
-     * registers any associated requirements, and finally registers the placeholder with the placeholder manager.
-     */
     private void loadPlaceholders() {
         placeholderManager.unregisterAll();
         final ConfigurationSection placeholdersConfigSection =
                 this.getConfig().getConfigurationSection("custom-placeholder");
-        for (final String identifier : placeholdersConfigSection.getKeys(false)) {
-            PlaceholderData data = getPlaceholderData(placeholdersConfigSection, identifier);
-            registerPlaceholder(placeholdersConfigSection, identifier, data);
-            this.getLogger().info(String.format("Registered placeholder %s", identifier));
+        if (placeholdersConfigSection != null) {
+            for (final String identifier : placeholdersConfigSection.getKeys(false)) {
+                PlaceholderData data = getPlaceholderData(placeholdersConfigSection, identifier, "config.yml");
+                if (data != null) {
+                    placeholderManager.register(identifier, data);
+                    this.getLogger().info(String.format("Registered placeholder %s from config.yml", identifier));
+                } else {
+                    this.getLogger().warning(String.format("Failed to register placeholder %s from config.yml", identifier));
+                }
+            }
         }
     }
 
-    /**
-     * Retrieves the placeholder data based on the provided configuration section and identifier.
-     *
-     * @param placeholdersConfigSection The configuration section containing the placeholder data.
-     * @param identifier                The identifier of the placeholder.
-     * @return The placeholder data object.
-     */
-    private PlaceholderData getPlaceholderData(ConfigurationSection placeholdersConfigSection, String identifier) {
+    private PlaceholderData getPlaceholderData(ConfigurationSection placeholdersConfigSection, String identifier, String yamlFileName) {
+        if (placeholdersConfigSection == null) return null;
+
         final String placeholderTypeProperty = identifier + ".type";
         final PlaceholderType type = PlaceholderType.find(placeholdersConfigSection.getString(placeholderTypeProperty));
+        if (type == null) return null;
+
         final String valuesProperty = identifier + ".values";
         final String valueProperty = identifier + ".value";
 
@@ -151,58 +123,48 @@ public final class ItsMyConfig extends JavaPlugin {
         }
     }
 
-    /**
-     * Registers a placeholder with the provided identifier and data.
-     *
-     * @param placeholdersConfigSection The ConfigurationSection containing placeholder data.
-     * @param identifier               The identifier of the placeholder.
-     * @param data                     The PlaceholderData object representing the data of the placeholder.
-     */
-    private void registerPlaceholder(
-            final ConfigurationSection placeholdersConfigSection,
-            final String identifier,
-            final PlaceholderData data
-    ) {
-        final ConfigurationSection requirementsConfigSection =
-                placeholdersConfigSection.getConfigurationSection(identifier + ".requirements");
-        if (requirementsConfigSection != null) {
-            for (final String req : requirementsConfigSection.getKeys(false)) {
-                data.registerRequirement(requirementsConfigSection.getConfigurationSection(req));
-            }
-        }
-        this.placeholderManager.register(identifier, data);
-    }
-
-    /**
-     * Loads progress bars from the configuration file.
-     * Each progress bar is registered in the ProgressBarBucket.
-     */
     private void loadProgressBars() {
         final ConfigurationSection progressBarConfigSection =
                 this.getConfig().getConfigurationSection("custom-progress");
-        for (final String identifier : progressBarConfigSection.getKeys(false)) {
-            final ConfigurationSection configurationSection =
-                    progressBarConfigSection
-                            .getConfigurationSection(identifier);
-            progressBarBucket.registerProgressBar(
-                    new ProgressBar(
-                            identifier,
-                            configurationSection.getString("symbol"),
-                            configurationSection.getString("completed-color"),
-                            configurationSection.getString("progress-color"),
-                            configurationSection.getString("remaining-color")
-                    )
-            );
+        if (progressBarConfigSection != null) {
+            for (final String identifier : progressBarConfigSection.getKeys(false)) {
+                final ConfigurationSection configurationSection =
+                        progressBarConfigSection
+                                .getConfigurationSection(identifier);
+                if (configurationSection != null) {
+                    ProgressBar progressBar = getProgressBarFromYaml(identifier, configurationSection, "config.yml");
+                    if (progressBar != null) {
+                        progressBarBucket.registerProgressBar(progressBar);
+                        this.getLogger().info(String.format("Registered custom progress bar %s from config.yml", identifier));
+                    } else {
+                        this.getLogger().warning(String.format("Failed to register custom progress bar %s from config.yml", identifier));
+                    }
+                }
+            }
         }
     }
 
-    /**
-     * Loads custom YAML files from the data folder and processes them based on the content of the first line.
-     * If the first line contains "custom-placeholder", placeholders are registered. If it contains "custom-progress",
-     * progress bars are registered.
-     *
-     * @param directory The directory to search for YAML files.
-     */
+    private ProgressBar getProgressBarFromYaml(String identifier, ConfigurationSection section, String yamlFileName) {
+        if (section == null) return null;
+
+        String symbol = section.getString("symbol");
+        String completedColor = section.getString("completed-color");
+        String progressColor = section.getString("progress-color");
+        String remainingColor = section.getString("remaining-color");
+
+        if (symbol == null || completedColor == null || progressColor == null || remainingColor == null) {
+            return null;
+        }
+
+        return new ProgressBar(
+                identifier,
+                symbol,
+                completedColor,
+                progressColor,
+                remainingColor
+        );
+    }
+
     private void loadCustomYamlFiles(File directory) {
         Collection<File> files = FileUtils.listFiles(directory, new String[]{"yml"}, true);
         for (File file : files) {
@@ -210,49 +172,71 @@ public final class ItsMyConfig extends JavaPlugin {
         }
     }
 
-
-    /**
-     * Retrieves the first line of text from a file.
-     *
-     * @param file The file to read.
-     * @return The first line of text in the file, or null if an error occurs.
-     */
-    private String getFirstLine(File file) {
-        try (Scanner scanner = new Scanner(file)) {
-            if (scanner.hasNextLine()) {
-                return scanner.nextLine();
-            }
-        } catch (IOException e) {
-            getLogger().warning("Error reading file: " + file.getPath());
-        }
-        return null;
-    }
-
-    /**
-     * Processes a custom YAML file by loading it and registering placeholders or progress bars based on the content.
-     *
-     * @param file      The YAML file to process.
-     * @param sectionName The name of the section containing the data to register.
-     * @param processor The function to process each entry in the section.
-     */
-    private void processCustomYamlFile(File file, String sectionName, BiConsumer<String, ConfigurationSection> processor) {
+    private void processCustomYamlFile(File file) {
         YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file);
-        ConfigurationSection section = yaml.getConfigurationSection(sectionName);
-        if (section != null) {
-            for (String identifier : section.getKeys(false)) {
-                ConfigurationSection itemSection = section.getConfigurationSection(identifier);
-                processor.accept(identifier, itemSection);
-                this.getLogger().info("Registered custom " + sectionName + ": " + identifier);
+        ConfigurationSection placeholdersSection = yaml.getConfigurationSection("custom-placeholder");
+        ConfigurationSection progressBarsSection = yaml.getConfigurationSection("custom-progress");
+
+        if (placeholdersSection != null) {
+            for (String identifier : placeholdersSection.getKeys(false)) {
+                ConfigurationSection itemSection = placeholdersSection.getConfigurationSection(identifier);
+                registerPlaceholder(identifier, itemSection, file.getName());
+            }
+        }
+
+        if (progressBarsSection != null) {
+            for (String identifier : progressBarsSection.getKeys(false)) {
+                ConfigurationSection itemSection = progressBarsSection.getConfigurationSection(identifier);
+                registerProgressBar(identifier, itemSection, file.getName());
             }
         }
     }
 
-    /**
-     * Retrieves the instance of the `BukkitAudiences` class used for sending chat messages and titles.
-     *
-     * @return The instance of the `BukkitAudiences` class.
-     * @throws IllegalStateException if the plugin is disabled and the `Adventure` instance is accessed.
-     */
+    private void registerPlaceholder(String identifier, ConfigurationSection section, String yamlFileName) {
+        PlaceholderData data = getPlaceholderDataFromYaml(section);
+        if (data != null) {
+            placeholderManager.register(identifier, data);
+            if (!yamlFileName.equals("config.yml")) {
+                this.getLogger().info(String.format("Registered placeholder %s from %s", identifier, yamlFileName));
+            }
+        } else {
+            this.getLogger().warning(String.format("Failed to register placeholder %s from %s", identifier, yamlFileName));
+        }
+    }
+
+    private PlaceholderData getPlaceholderDataFromYaml(ConfigurationSection section) {
+        if (section == null) return null;
+
+        String type = section.getString("type");
+        PlaceholderType placeholderType = PlaceholderType.find(type);
+        if (placeholderType == null) return null;
+
+        switch (placeholderType) {
+            case RANDOM:
+                return new RandomPlaceholderData(section.getStringList("values"));
+            case ANIMATION:
+                int interval = section.getInt("interval", 20);
+                return new AnimatedPlaceholderData(section.getStringList("values"), interval);
+            case COLOR:
+                return new ColorPlaceholderData(section);
+            default:
+            case STRING:
+                return new StringPlaceholderData(section.getString("value", ""));
+        }
+    }
+
+    private void registerProgressBar(String identifier, ConfigurationSection section, String yamlFileName) {
+        ProgressBar progressBar = getProgressBarFromYaml(identifier, section, yamlFileName);
+        if (progressBar != null) {
+            progressBarBucket.registerProgressBar(progressBar);
+            if (!yamlFileName.equals("config.yml")) {
+                this.getLogger().info(String.format("Registered progress bar %s from %s", identifier, yamlFileName));
+            }
+        } else {
+            this.getLogger().warning(String.format("Failed to register progress bar %s from %s", identifier, yamlFileName));
+        }
+    }
+
     public BukkitAudiences adventure() {
         if (this.adventure == null) {
             throw new IllegalStateException("Tried to access Adventure when the plugin was disabled!");
@@ -260,32 +244,15 @@ public final class ItsMyConfig extends JavaPlugin {
         return this.adventure;
     }
 
-    /**
-     * Retrieves the symbol prefix.
-     *
-     * @return The symbol prefix used in messages or text.
-     */
     public String getSymbolPrefix() {
         return symbolPrefix;
     }
 
-    /**
-     * Retrieves the PlaceholderManager instance.
-     *
-     * @return The PlaceholderManager instance.
-     */
     public PlaceholderManager getPlaceholderManager() {
         return placeholderManager;
     }
 
-    /**
-     * Returns the RequirementManager object. The RequirementManager class is responsible for managing requirements
-     * and validating them.
-     *
-     * @return the RequirementManager object
-     */
     public RequirementManager getRequirementManager() {
         return requirementManager;
     }
-    
 }
