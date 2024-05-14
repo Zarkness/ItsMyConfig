@@ -240,12 +240,17 @@ public final class Utilities {
      */
     public static List<Integer> getArguments(final String string) {
         final List<Integer> args = new ArrayList<>();
-        final Matcher matcher = ARGUMENT_PATTERN.matcher(string);
-        while (matcher.find()) {
-            args.add(Integer.parseInt(matcher.group(1)));
+        if (string != null) {
+            final Matcher matcher = ARGUMENT_PATTERN.matcher(string);
+            while (matcher.find()) {
+                if (matcher.groupCount() > 0 && matcher.group(1) != null) {
+                    args.add(Integer.parseInt(matcher.group(1)));
+                }
+            }
         }
         return args;
     }
+
 
     /**
      * Removes color codes from a string.
